@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from config import settings
+from core.config import settings
 import jwt
 from pwdlib import PasswordHash
 
