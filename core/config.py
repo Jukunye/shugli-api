@@ -9,8 +9,9 @@ class Settings(BaseSettings):
     )
 
     # --- App ---
-    debug: bool = False
     app_name: str = "Shugli API"
+    database_url: str = "sqlite:///./app.db"
+    debug: bool = False
 
     # --- Security ---
     secret_key: str = Field(default=..., min_length=32)
