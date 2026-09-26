@@ -1,11 +1,17 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
-app = FastAPI()
+from api.v1.routers import auth
+from core.config import settings
+from core.db.base import Base, engine
+import models
 
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    yield
 
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: str | None = None):
-    return {"item_id": item_id, "q": q}
+app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=lifespan)
+
+app.include_router(auth.router, prefix="/api/v1")
