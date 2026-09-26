@@ -4,7 +4,7 @@ from datetime import datetime
 
 # --- Shared base ---
 class UserBase(BaseModel):
-    username: str = Field(..., min_length=3, max_length=50)
+    username: Optional[str] = Field(None, min_length=3, max_length=50)
     email: EmailStr
 
 # --- Create ---
