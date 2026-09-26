@@ -12,3 +12,4 @@ wheels/
 .ideas
 .vscode
 .env
+app.db
