@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from core.db.base import get_db
-from core.security import hash_password
+from core.dependencies import get_current_user
+from core.security import hash_password, verify_password, create_access_token
 from models.user import User
-from schemas.user import UserCreate, UserResponse
+from schemas.user import UserCreate, UserResponse, UserLogin
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -34,3 +35,22 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
     return user
+
+@router.post("/login")
+def login(payload: UserLogin, db: Session = Depends(get_db)):
+
+    user = db.scalar(select(User).where(User.email == payload.email))
+
+    if not user or not verify_password(payload.password, user.hashed_password):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account inactive")
+    token = create_access_token(str(user.id))
+
+    return {"access_token": token, "token_type": "bearer"}
+
+
+@router.get("/me", response_model=UserResponse)
+def me(current_user: User = Depends(get_current_user)):
+    return current_user
