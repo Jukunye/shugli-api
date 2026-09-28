@@ -1,5 +1,5 @@
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Path
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -14,8 +14,6 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
     try:
         payload = decode_token(token)
-    except jwt.ExpiredSignatureError:
-        raise creds_exp
     except jwt.InvalidTokenError:
         raise creds_exp
 
@@ -35,3 +33,9 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if not user or not user.is_active:
         raise creds_exp
     return user
+
+def require_self(user_id: int = Path(...), current_user: User = Depends(get_current_user)) -> User:
+    if current_user.id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed")
+
+    return current_user
