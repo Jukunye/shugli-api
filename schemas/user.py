@@ -43,3 +43,9 @@ class UserResponse(UserBase):
     last_login_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# --- Login ---
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
