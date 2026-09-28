@@ -14,11 +14,10 @@ class UserCreate(UserBase):
 
 # --- Update (PATCH semantics: everything is optional) ---
 class UserUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    
     username: Optional[str] = Field(None, min_length=3, max_length=50)
-    email: Optional[EmailStr] = None
     phone: Optional[str] = Field(None, max_length=20)
-    password: Optional[str] = Field(None, min_length=8)
-    is_active: Optional[bool] = None
 
 # --- Internal (DB representation) ---
 class UserInDB(UserBase):
