@@ -27,3 +27,12 @@ def update(payload: UserUpdate, current_user: User = Depends(require_self), db: 
     db.refresh(current_user)
 
     return current_user
+
+@router.delete("/{user_id}", response_model=UserResponse)
+def delete(current_user: User = Depends(require_self), db: Session = Depends(get_db)):
+    
+    current_user.is_active = False
+    db.commit()
+    db.refresh(current_user)
+
+    return current_user
