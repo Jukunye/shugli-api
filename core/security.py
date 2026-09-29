@@ -25,7 +25,7 @@ def create_access_token(sub: str) -> str:
     return _create_token(sub, timedelta(minutes=settings.access_token_expire_minutes), "access")
 
 def create_refresh_token(sub: str) -> str:
-    return _create_token(sub, timedelta(minutes=settings.access_token_expire_minutes), "refresh")
+    return _create_token(sub, timedelta(minutes=settings.refresh_token_expire_days), "refresh")
 
 def decode_token(token: str) -> dict:
     return jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
