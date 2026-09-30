@@ -48,3 +48,5 @@ class UserResponse(UserBase):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+    model_config = ConfigDict(extra="forbid")
