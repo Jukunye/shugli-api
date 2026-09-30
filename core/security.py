@@ -25,7 +25,11 @@ def create_access_token(sub: str) -> str:
     return _create_token(sub, timedelta(minutes=settings.access_token_expire_minutes), "access")
 
 def create_refresh_token(sub: str) -> str:
-    return _create_token(sub, timedelta(minutes=settings.refresh_token_expire_days), "refresh")
+    return _create_token(sub, timedelta(days=settings.refresh_token_expire_days), "refresh")
 
-def decode_token(token: str) -> dict:
-    return jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+def decode_token(token: str, expected_type: str | None = None) -> dict:
+    payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+
+    if expected_type is not None and payload.get("type") != expected_type:
+        raise jwt.InvalidTokenError(f"Expected {expected_type} token")
+    return payload
