@@ -12,8 +12,11 @@ from models.user import User
 from schemas.auth import RefreshRequest, TokenResponse
 from schemas.user import UserCreate, UserLogin, UserResponse
 from services.refresh_tokens import (
+    RefreshTokenError,
+    RefreshTokenReused,
     build_refresh_token,
     get_refresh_token,
+    revoke_all_refresh_token,
     revoke_refresh_token,
     validate_refresh_token,
 )
@@ -104,8 +107,13 @@ def refresh(refresh_request: RefreshRequest, db: Session = Depends(get_db)):
     single commit persists both changes. Replaying a rotated token
     therefore fails, and no window exists where two tokens are live.
 
-    Returns 401 for unknown, revoked, expired, or inactive-user tokens
-    with a generic message so clients cannot distinguish the cause.
+    Reuse detection: if the presented token was already rotated (has
+    both revoked_at and replaced_by_id set), we treat it as theft and
+    revoke every refresh token for that user. The legitimate client
+    and the attacker both lose their sessions and must log in again.
+
+    All rejection paths return 401 with the same generic message so
+    clients cannot distinguish the cause.
     """
     invalid_error = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
@@ -115,13 +123,17 @@ def refresh(refresh_request: RefreshRequest, db: Session = Depends(get_db)):
     if row is None:
         raise invalid_error
 
-    try:
-        validate_refresh_token(row)
-    except ValueError:
-        raise invalid_error
-
     user = db.get(User, row.user_id)
     if user is None or not user.is_active:
+        raise invalid_error
+
+    try:
+        validate_refresh_token(row)
+    except RefreshTokenReused:
+        revoke_all_refresh_token(db, user.id)
+        db.commit()
+        raise invalid_error
+    except RefreshTokenError:
         raise invalid_error
 
     raw_new, row_new = build_refresh_token(user.id)
