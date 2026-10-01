@@ -1,5 +1,7 @@
 import secrets, hashlib
 from datetime import datetime, timezone, timedelta
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from core.config import settings
 from models.token import RefreshToken 
@@ -29,3 +31,28 @@ def build_refresh_token(user_id: int) -> tuple[str, RefreshToken]:
     )
     
     return raw, row
+
+def get_refresh_token(db: Session, raw: str) -> RefreshToken | None:
+  """Look up a refresh token row by its raw value. Returns None if unknown."""
+  raw_hash = hashlib.sha256(raw.encode()).hexdigest()
+  return db.scalar(select(RefreshToken).where(RefreshToken.token_hash == raw_hash))
+
+
+def validate_refresh_token(row: RefreshToken) -> None:
+   """
+    Raise ValueError if the token is revoked or expired.
+
+    SQLite returns naive datetimes even for DateTime(timezone=True),
+    so we normalize before comparing against an aware now.
+    """
+   now = datetime.now(timezone.utc)
+
+   if row.revoked_at is not None:
+      raise ValueError("Revoked refresh token")
+
+   expires_at = row.expires_at
+   if expires_at.tzinfo is None:
+      expires_at = expires_at.replace(tzinfo=timezone.utc)
+   
+   if expires_at <= now:
+      raise ValueError("Expired refresh token")
