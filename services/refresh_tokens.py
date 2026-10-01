@@ -2,7 +2,7 @@ import hashlib
 import secrets
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from core.config import settings
@@ -66,3 +66,17 @@ def revoke_refresh_token(row: RefreshToken, replaced_by_id: int | None = None) -
     row.revoked_at = datetime.now(UTC)
     if replaced_by_id is not None:
         row.replaced_by_id = replaced_by_id
+
+
+def revoke_all_refresh_token(db: Session, user_id: int):
+    """
+    Revoke every non-revoked refresh token for a user.
+
+    Iterates rows so SQLAlchemy's onupdate fires on updated_at; a bulk
+    UPDATE would bypass it. Returns the number of rows revoked.
+    """
+    db.execute(
+        update(RefreshToken)
+        .where(RefreshToken.user_id == user_id, RefreshToken.revoked_at.is_(None))
+        .values(revoked_at=datetime.now(UTC))
+    )
