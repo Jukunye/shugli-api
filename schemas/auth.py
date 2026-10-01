@@ -6,3 +6,7 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
     model_config = ConfigDict(extra="forbid")
+
+class RefreshRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    refresh_token: str
