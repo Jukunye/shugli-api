@@ -9,6 +9,19 @@ from core.config import settings
 from models.token import RefreshToken
 
 
+class RefreshTokenError(ValueError):
+    """Base for refresh token validation failures."""
+
+
+class RefreshTokenExpired(RefreshTokenError): ...
+
+
+class RefreshTokenRevoked(RefreshTokenError): ...
+
+
+class RefreshTokenReused(RefreshTokenError): ...
+
+
 def build_refresh_token(user_id: int) -> tuple[str, RefreshToken]:
     """
     Generate a new refresh token.
@@ -44,22 +57,32 @@ def get_refresh_token(db: Session, raw: str) -> RefreshToken | None:
 
 def validate_refresh_token(row: RefreshToken) -> None:
     """
-    Raise ValueError if the token is revoked or expired.
+    Raise a RefreshTokenError subclass if the token is not usable.
 
-    SQLite returns naive datetimes even for DateTime(timezone=True),
-    so we normalize before comparing against an aware now.
+    Order matters:
+      - Reuse (revoked AND replaced_by_id set) is checked first because
+        it is the strongest signal — a replayed token means we should
+        kill the whole chain, not just reject this one.
+      - Plain revocation (logout / logout-all) is next.
+      - Expiry last.
+
+    SQLite returns naive datetimes even for DateTime(timezone=True), so
+    we normalize before comparing against an aware now.
     """
     now = datetime.now(UTC)
 
+    if row.revoked_at is not None and row.replaced_by_id is not None:
+        raise RefreshTokenReused()
+
     if row.revoked_at is not None:
-        raise ValueError("Revoked refresh token")
+        raise RefreshTokenRevoked()
 
     expires_at = row.expires_at
     if expires_at.tzinfo is None:
         expires_at = expires_at.replace(tzinfo=UTC)
 
     if expires_at <= now:
-        raise ValueError("Expired refresh token")
+        raise RefreshTokenExpired()
 
 
 def revoke_refresh_token(row: RefreshToken, replaced_by_id: int | None = None) -> None:
